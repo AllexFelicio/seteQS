@@ -1,43 +1,54 @@
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import React from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { Button, Card, HelperText, Text, TextInput } from 'react-native-paper';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+
 
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { loginRequest } from '../services/authService';
+import { loginAdmin } from '../services/authService';
 import { saveUserSession } from '../storage/authStorage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export function LoginScreen({ navigation }: Props) {
-  const [usuario, setUsuario] = useState('');
-  const [senha, setSenha] = useState('');
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [erro, setErro] = useState('');
+  const { width } = useWindowDimensions();
+  const isPortraitLike = width < 900;
+
+  const [username, setUsername] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
 
   const handleLogin = async () => {
-    if (!usuario.trim() || !senha.trim()) {
-      setErro('Preencha usuário e senha.');
+    if (!username.trim() || !password.trim()) {
+      setError('Preencha usuário e senha.');
       return;
     }
 
     try {
       setLoading(true);
-      setErro('');
+      setError('');
 
-      const session = await loginRequest({
-        username: usuario.trim(),
-        password: senha,
+      const session = await loginAdmin({
+        username: username.trim(),
+        password,
       });
 
       await saveUserSession(session);
-
       navigation.replace('Home');
-    } catch (error) {
+    } catch (err) {
       const message =
-        error instanceof Error ? error.message : 'Não foi possível realizar o login.';
-      setErro(message);
+        err instanceof Error ? err.message : 'Não foi possível realizar o login.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -45,149 +56,184 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
     >
-      <View style={styles.leftPanel}>
-        <Text style={styles.brandMini}>SETEQS TREINAMENTOS</Text>
-        <Text style={styles.brandTitle}>Painel Corporativo</Text>
-        <Text style={styles.brandDescription}>
-          Plataforma operacional para acesso rápido aos módulos e recursos internos.
-        </Text>
-      </View>
-
-      <View style={styles.rightPanel}>
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="headlineSmall" style={styles.title}>
-              Acessar sistema
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+      >
+        <View
+          style={[
+            styles.container,
+            isPortraitLike ? styles.containerPortrait : styles.containerLandscape,
+          ]}
+        >
+          <View
+            style={[
+              styles.leftPanel,
+              isPortraitLike ? styles.leftPanelPortrait : styles.leftPanelLandscape,
+            ]}
+          >
+            <Text variant="headlineLarge" style={styles.brandTitle}>
+              SETE QS TREINAMENTOS
             </Text>
-
-            <Text variant="bodyMedium" style={styles.subtitle}>
-              Informe suas credenciais para continuar
+            <Text variant="bodyLarge" style={styles.brandText}>
+              Acesso administrativo local para configuração das agendas e vínculo dos
+              instrutores.
             </Text>
+          </View>
 
-            <TextInput
-              label="Usuário"
-              value={usuario}
-              onChangeText={setUsuario}
-              mode="outlined"
-              style={styles.input}
-              autoCapitalize="none"
-              disabled={loading}
-            />
+          <View
+            style={[
+              styles.rightPanel,
+              isPortraitLike ? styles.rightPanelPortrait : styles.rightPanelLandscape,
+            ]}
+          >
+            <Card style={styles.card}>
+              <Card.Content>
+                <Text variant="headlineSmall" style={styles.cardTitle}>
+                  Acessar o sistema
+                </Text>
 
-            <View style={styles.passwordWrapper}>
-              <TextInput
-                label="Senha"
-                value={senha}
-                onChangeText={setSenha}
-                mode="outlined"
-                style={styles.passwordInput}
-                secureTextEntry={!mostrarSenha}
-                disabled={loading}
-              />
+                <TextInput
+                  label="Usuário"
+                  mode="outlined"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  style={styles.input}
+                  disabled={loading}
+                  returnKeyType="next"
+                />
 
-              <Button
-                mode="text"
-                onPress={() => setMostrarSenha(!mostrarSenha)}
-                compact
-                disabled={loading}
-                style={styles.showPasswordButton}
-                labelStyle={styles.showPasswordLabel}
-              >
-                {mostrarSenha ? 'Ocultar' : 'Mostrar'}
-              </Button>
-            </View>
+                <TextInput
+                  label="Senha"
+                  mode="outlined"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={styles.input}
+                  disabled={loading}
+                  returnKeyType="done"
+                />
 
-            {erro ? <HelperText type="error">{erro}</HelperText> : null}
+                <View style={styles.passwordActionRow}>
+                  <Button
+                    mode="text"
+                    compact
+                    onPress={() => setShowPassword(prev => !prev)}
+                    disabled={loading}
+                    contentStyle={styles.passwordActionContent}
+                    labelStyle={styles.passwordActionLabel}
+                  >
+                    {showPassword ? 'Ocultar' : 'Mostrar'}
+                  </Button>
+                </View>
 
-            <Button
-              mode="contained"
-              onPress={handleLogin}
-              loading={loading}
-              disabled={loading}
-              style={styles.button}
-            >
-              Entrar
-            </Button>
-          </Card.Content>
-        </Card>
-      </View>
+                {error ? <HelperText type="error">{error}</HelperText> : null}
+
+                <Button
+                  mode="contained"
+                  onPress={handleLogin}
+                  loading={loading}
+                  disabled={loading}
+                  style={styles.loginButton}
+                >
+                  Entrar
+                </Button>
+              </Card.Content>
+            </Card>
+          </View>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardContainer: {
     flex: 1,
-    flexDirection: 'row',
     backgroundColor: '#F4F7FA',
   },
-  leftPanel: {
+  scrollContent: {
+    flexGrow: 1,
+  },
+  container: {
     flex: 1,
+    backgroundColor: '#F4F7FA',
+  },
+  containerLandscape: {
+    flexDirection: 'row',
+  },
+  containerPortrait: {
+    flexDirection: 'column',
+  },
+  leftPanel: {
     backgroundColor: '#0F4C81',
     justifyContent: 'center',
     padding: 32,
   },
-  brandMini: {
-    color: '#D9E8F5',
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 12,
+  leftPanelLandscape: {
+    flex: 1,
+  },
+  leftPanelPortrait: {
+    minHeight: 220,
+  },
+  rightPanel: {
+    justifyContent: 'center',
+    padding: 24,
+  },
+  rightPanelLandscape: {
+    flex: 1,
+  },
+  rightPanelPortrait: {
+    flex: 1,
+    paddingTop: 24,
+    paddingBottom: 24,
   },
   brandTitle: {
     color: '#FFFFFF',
-    fontSize: 34,
     fontWeight: '800',
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  brandDescription: {
-    color: '#E7F0F8',
-    fontSize: 18,
-    lineHeight: 26,
-  },
-  rightPanel: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+  brandText: {
+    color: '#DCE7F2',
+    maxWidth: 420,
   },
   card: {
-    width: '100%',
-    maxWidth: 420,
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
   },
-  title: {
+  cardTitle: {
+    marginBottom: 20,
     color: '#1F2A37',
     fontWeight: '700',
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: '#5B6875',
-    marginBottom: 20,
   },
   input: {
-    marginBottom: 16,
+    marginBottom: 12,
     backgroundColor: '#FFFFFF',
   },
-  passwordWrapper: {
+  loginButton: {
+    marginTop: 8,
+  },
+  passwordActionRow: {
+    alignItems: 'flex-end',
+    marginTop: -4,
     marginBottom: 8,
   },
-  passwordInput: {
-    backgroundColor: '#FFFFFF',
+  passwordActionContent: {
+    justifyContent: 'flex-end',
   },
-  showPasswordButton: {
-    alignSelf: 'flex-end',
-    marginTop: 4,
-  },
-  showPasswordLabel: {
+  passwordActionLabel: {
     color: '#0F4C81',
-    fontSize: 13,
     fontWeight: '600',
-  },
-  button: {
-    marginTop: 8,
   },
 });
